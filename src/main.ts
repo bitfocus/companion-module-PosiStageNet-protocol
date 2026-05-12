@@ -55,6 +55,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private systemName = ''
 	private packetTimestamps: number[] = []
 	private connectionLostTimer?: NodeJS.Timeout
+	private reconnectTimer?: NodeJS.Timeout
 	public currentStatus: InstanceStatus = InstanceStatus.Ok
 
 	constructor(internal: unknown) {
@@ -96,6 +97,39 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		if (parts.length !== 4) return false
 		const firstOctet = parseInt(parts[0], 10)
 		return firstOctet >= 224 && firstOctet <= 239
+	}
+
+	private getBindAddress(): string | undefined {
+		const bindAddress = this.config.advancedOptions ? this.config.bind : undefined
+		return bindAddress && bindAddress !== '0.0.0.0' ? bindAddress : undefined
+	}
+
+	private isRecoverableSocketError(error: unknown): boolean {
+		let code = ''
+		if (typeof error === 'object' && error !== null && 'code' in error) {
+			code = String((error as { code?: unknown }).code)
+		}
+		return code === 'EADDRNOTAVAIL' || code === 'ENODEV'
+	}
+
+	private clearReconnectTimer(): void {
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer)
+			delete this.reconnectTimer
+		}
+	}
+
+	private scheduleReconnect(reason: string): void {
+		this.log('warn', `${reason} - retrying in 5 seconds`)
+		this.updateStatus(InstanceStatus.ConnectionFailure, reason)
+
+		if (this.reconnectTimer) return
+
+		void this.closeConnection()
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = undefined
+			void this.initConnection()
+		}, 5000)
 	}
 
 	public updateAndCheckKeyChanges(): boolean {
@@ -159,6 +193,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 	private async initConnection(): Promise<void> {
 		try {
+			this.clearReconnectTimer()
 			this.log('info', `🚀 Initializing NATIVE PosiStageNet connection to ${this.config.host}:${this.config.port}`)
 
 			this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true })
@@ -169,21 +204,29 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 			this.socket.on('error', (err: Error) => {
 				this.log('error', `❌ UDP error: ${err.message}`)
+				if (this.isRecoverableSocketError(err)) {
+					this.scheduleReconnect(err.message)
+					return
+				}
 				this.updateStatus(InstanceStatus.ConnectionFailure, err.message)
 			})
 
 			this.socket.on('listening', () => {
 				const address = this.socket!.address()
-				this.log('info', `🎧 Successfully bound to ${this.config.bind}:${address.port}`)
+				const bindAddress = this.getBindAddress()
+				this.log('info', `🎧 Successfully bound to ${bindAddress ?? '0.0.0.0'}:${address.port}`)
 
 				// Join multicast group if the host is a multicast address
 				if (this.isMulticastAddress(this.config.host)) {
 					try {
-						// bind fixes a problem: the operating system will choose one interface and will add membership to it (sometimes the wrong one)
-						this.socket!.addMembership(this.config.host, this.config.advancedOptions ? this.config.bind : undefined)
+						this.socket!.addMembership(this.config.host, bindAddress)
 						this.log('info', `✅ Successfully joined multicast group ${this.config.host}`)
 					} catch (error) {
 						this.log('error', `❌ Failed to join multicast group ${this.config.host}: ${error}`)
+						if (this.isRecoverableSocketError(error)) {
+							this.scheduleReconnect(`Multicast join failed: ${error}`)
+							return
+						}
 						this.updateStatus(InstanceStatus.ConnectionFailure, `Multicast join failed: ${error}`)
 						return
 					}
@@ -199,15 +242,19 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				this.log('info', '🔌 UDP socket closed')
 			})
 
-			this.log('info', `🔗 Binding to port ${this.config.port}...`)
-			this.socket.bind(this.config.port)
+			const bindAddress = this.getBindAddress()
+			this.log('info', `🔗 Binding to port ${this.config.port}${bindAddress ? ` on ${bindAddress}` : ''}...`)
+			this.socket.bind(this.config.port, bindAddress)
 		} catch (error) {
 			this.log('error', `❌ Failed to create UDP socket: ${error}`)
 			this.updateStatus(InstanceStatus.ConnectionFailure, `UDP socket error: ${error}`)
+			this.scheduleReconnect(`UDP socket error: ${error}`)
 		}
 	}
 
 	private async closeConnection(): Promise<void> {
+		this.clearReconnectTimer()
+
 		if (this.socket) {
 			// Leave multicast group before closing
 			if (this.isMulticastAddress(this.config.host)) {
