@@ -38,6 +38,7 @@ interface TrackerData {
 	accel?: { x: number; y: number; z: number }
 	trgtpos?: { x: number; y: number; z: number }
 	timestamp?: bigint
+	lastSeen?: number
 }
 
 interface ChunkHeader {
@@ -52,6 +53,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	private socket?: dgram.Socket
 	public currentTrackerList: number[] = []
 	private trackers = new Map<number, TrackerData>()
+	private trackerTimeoutTimers = new Map<number, NodeJS.Timeout>()
 	private systemName = ''
 	private packetTimestamps: number[] = []
 	private connectionLostTimer?: NodeJS.Timeout
@@ -229,6 +231,11 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			}
 		}
 		this.trackers.clear()
+
+		for (const timer of this.trackerTimeoutTimers.values()) {
+			clearTimeout(timer)
+		}
+		this.trackerTimeoutTimers.clear()
 	}
 
 	private handleMessage(buffer: Buffer, _rinfo: RemoteInfo): void {
@@ -458,6 +465,21 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 					break
 			}
 		}
+
+		tracker.lastSeen = Date.now()
+
+		if (this.config.useTrackerTimeout) {
+			const existing = this.trackerTimeoutTimers.get(tracker.id)
+			if (existing) clearTimeout(existing)
+			const deadline = this.config.trackerTimeout ?? 10
+			this.trackerTimeoutTimers.set(
+				tracker.id,
+				setTimeout(() => {
+					this.trackerTimeoutTimers.delete(tracker.id)
+					this.updateTrackerVariables()
+				}, deadline),
+			)
+		}
 	}
 
 	private updateTrackerVariables(): void {
@@ -504,8 +526,12 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				variableValues[`${prefix}ori_z`] = this.format(tracker.ori.z)
 			}
 
-			if (tracker.validity !== undefined) {
-				variableValues[`${prefix}validity`] = this.format(tracker.validity)
+			if (tracker.validity !== undefined && this.config.useValidity) {
+				const timeout = this.config.trackerTimeout ?? 10
+				const isStale =
+					this.config.useTrackerTimeout === true &&
+					(tracker.lastSeen === undefined || Date.now() - tracker.lastSeen > timeout)
+				variableValues[`${prefix}validity`] = isStale ? '' : this.format(tracker.validity)
 			}
 
 			if (tracker.accel && this.config.useAccel) {
