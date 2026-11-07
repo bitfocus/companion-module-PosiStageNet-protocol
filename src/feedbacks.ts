@@ -15,7 +15,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 	self.setFeedbackDefinitions({
 		tracker_active: {
 			name: 'Tracker Active',
-			description: '',
+			description: 'Changes the button style when the tracker with this ID is present in the PSN stream',
 			type: 'boolean',
 			defaultStyle: {
 				bgcolor: ColorOrange,

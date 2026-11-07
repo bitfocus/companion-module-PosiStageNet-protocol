@@ -57,6 +57,15 @@ Each tracker will have variables for:
 - Numeric tracker values (position, speed, orientation, acceleration, target position, validity) are rounded to at most 3 decimal places when exposed as variables to keep outputs readable.
 - You can configure how many trackers to follow via the setting "Max trackers to follow". Variables are generated for tracker IDs up to this number (including ID 0), and only those trackers will be populated during runtime.
 
+#### Network Interface (Bind to specific IP)
+
+With **Advanced Options** enabled, "Bind to specific IP" selects which network card joins the multicast group. Pick an interface from the list, or choose "Any interface (OS default)" (`0.0.0.0`) to let the operating system decide. The list is refreshed each time the settings are opened. Custom values must be IP addresses (not interface names or hostnames).
+
+#### Stale Tracker Data
+
+- **Clear Validity when tracker data is stale**: when enabled, `tracker_<id>_validity` becomes empty if no data has been received for that tracker within the timeout.
+- **Tracker data timeout (ms)**: how long to wait without data before a tracker is considered stale. Choose a value comfortably above your PSN source's packet interval (e.g. 100–500 ms for a 60 Hz source).
+
 #### Example Usage
 
 You can use variables like `${tracker_1_pos_x}` in Companion buttons, feedbacks, or elsewhere to access live tracker data.

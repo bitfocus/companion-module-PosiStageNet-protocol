@@ -39,6 +39,7 @@ interface TrackerData {
 	trgtpos?: { x: number; y: number; z: number }
 	timestamp?: bigint
 	lastSeen?: number
+	stale?: boolean
 }
 
 interface ChunkHeader {
@@ -49,7 +50,6 @@ interface ChunkHeader {
 
 export class ModuleInstance extends InstanceBase<ModuleConfig> {
 	config!: ModuleConfig // Setup in init()
-	public localIPs: { id: string; label: string }[] = []
 	private socket?: dgram.Socket
 	public currentTrackerList: number[] = []
 	private trackers = new Map<number, TrackerData>()
@@ -61,21 +61,22 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 	constructor(internal: unknown) {
 		super(internal)
+	}
 
-		// Get local IPs for Config
-		this.localIPs = []
+	/**
+	 * Build the list of local IPv4 interfaces. Called each time the config is opened.
+	 */
+	getLocalIPs(): { id: string; label: string }[] {
+		const result: { id: string; label: string }[] = [{ id: '0.0.0.0', label: 'Any interface (OS default)' }]
 		const interfaces = os.networkInterfaces()
-		const interface_names = Object.keys(interfaces)
-		interface_names.forEach((nic) => {
-			const ips = interfaces[nic]
-			if (ips) {
-				ips.forEach((ip) => {
-					if (ip.family == 'IPv4') {
-						this.localIPs.push({ id: ip.address, label: `${nic}: ${ip.address}` })
-					}
-				})
+		for (const nic of Object.keys(interfaces)) {
+			for (const ip of interfaces[nic] ?? []) {
+				if (ip.family == 'IPv4') {
+					result.push({ id: ip.address, label: `${nic}: ${ip.address}` })
+				}
 			}
-		})
+		}
+		return result
 	}
 
 	/**
@@ -176,14 +177,17 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 
 			this.socket.on('listening', () => {
 				const address = this.socket!.address()
-				this.log('info', `🎧 Successfully bound to ${this.config.bind}:${address.port}`)
+				this.log('info', `🎧 Successfully bound to ${address.address}:${address.port}`)
 
 				// Join multicast group if the host is a multicast address
 				if (this.isMulticastAddress(this.config.host)) {
 					try {
 						// bind fixes a problem: the operating system will choose one interface and will add membership to it (sometimes the wrong one)
 						this.socket!.addMembership(this.config.host, this.config.advancedOptions ? this.config.bind : undefined)
-						this.log('info', `✅ Successfully joined multicast group ${this.config.host}`)
+						this.log(
+							'info',
+							`✅ Joined multicast group ${this.config.host} on interface ${this.config.advancedOptions ? this.config.bind : 'OS default'}`,
+						)
 					} catch (error) {
 						this.log('error', `❌ Failed to join multicast group ${this.config.host}: ${error}`)
 						this.updateStatus(InstanceStatus.ConnectionFailure, `Multicast join failed: ${error}`)
@@ -467,6 +471,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		}
 
 		tracker.lastSeen = Date.now()
+		tracker.stale = false
 
 		if (this.config.useTrackerTimeout) {
 			const existing = this.trackerTimeoutTimers.get(tracker.id)
@@ -476,6 +481,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				tracker.id,
 				setTimeout(() => {
 					this.trackerTimeoutTimers.delete(tracker.id)
+					tracker.stale = true
 					this.updateTrackerVariables()
 				}, deadline),
 			)
@@ -527,10 +533,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			}
 
 			if (tracker.validity !== undefined && this.config.useValidity) {
-				const timeout = this.config.trackerTimeout ?? 10
-				const isStale =
-					this.config.useTrackerTimeout === true &&
-					(tracker.lastSeen === undefined || Date.now() - tracker.lastSeen > timeout)
+				const isStale = this.config.useTrackerTimeout === true && tracker.stale === true
 				variableValues[`${prefix}validity`] = isStale ? '' : this.format(tracker.validity)
 			}
 
