@@ -39,7 +39,8 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 		},
 		tracker_moving: {
 			name: 'Tracker Moving',
-			description: "Changes the button's style when the value is below or above 0.",
+			description:
+				'Colours the button by the sign of the chosen tracker value (Type and Axis): Up colours above 0, Down colours below 0, Default colours at 0.',
 			type: 'advanced',
 			options: [
 				{
@@ -62,7 +63,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 						{ id: 'accel', label: 'Acceleration' },
 						{ id: 'trgtpos', label: 'Targetposition' },
 					],
-					isVisible: () => true,
+					isVisibleExpression: 'true',
 				},
 				{
 					id: 'tracker_axis',
@@ -74,7 +75,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 						{ id: 'y', label: 'y-axis' },
 						{ id: 'z', label: 'z-axis' },
 					],
-					isVisible: () => true,
+					isVisibleExpression: 'true',
 				},
 				{
 					type: 'colorpicker',
@@ -87,7 +88,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 					label: 'Background color (Up)',
 					id: 'bg',
 					default: ColorBlack,
-					isVisible: () => false,
+					isVisibleExpression: 'false',
 				},
 				{
 					type: 'colorpicker',
@@ -100,7 +101,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 					label: 'Background color (Default)',
 					id: 'bg_default',
 					default: ColorTrack,
-					isVisible: () => false,
+					isVisibleExpression: 'false',
 				},
 				{
 					type: 'colorpicker',
@@ -113,7 +114,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 					label: 'Background color (Down)',
 					id: 'bg_down',
 					default: ColorBlack,
-					isVisible: () => false,
+					isVisibleExpression: 'false',
 				},
 			],
 			callback: (feedback, _context) => {

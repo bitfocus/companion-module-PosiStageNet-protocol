@@ -38,7 +38,6 @@ interface TrackerData {
 	accel?: { x: number; y: number; z: number }
 	trgtpos?: { x: number; y: number; z: number }
 	timestamp?: bigint
-	lastSeen?: number
 	stale?: boolean
 }
 
@@ -470,13 +469,12 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 			}
 		}
 
-		tracker.lastSeen = Date.now()
 		tracker.stale = false
 
 		if (this.config.useTrackerTimeout) {
 			const existing = this.trackerTimeoutTimers.get(tracker.id)
 			if (existing) clearTimeout(existing)
-			const deadline = this.config.trackerTimeout ?? 10
+			const deadline = this.config.trackerTimeout ?? 500
 			this.trackerTimeoutTimers.set(
 				tracker.id,
 				setTimeout(() => {

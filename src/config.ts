@@ -63,10 +63,11 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			width: 6,
 			choices: self.getLocalIPs(),
 			allowCustom: true,
-			tooltip: 'the IP address of the network interface to bind to. default is $(internal:bind_ip)',
+			tooltip:
+				'Network interface used to join the multicast group. Default: Any interface (OS default, 0.0.0.0). Custom values must be IP addresses.',
 			regex: Regex.IP,
 			default: '0.0.0.0',
-			isVisible: (options) => options.advancedOptions === true,
+			isVisibleExpression: '$(options:advancedOptions)',
 		},
 		{
 			type: 'number',
@@ -78,7 +79,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			min: 0,
 			max: 4,
 			required: true,
-			isVisible: (options) => options.advancedOptions === true,
+			isVisibleExpression: '$(options:advancedOptions)',
 		},
 		{
 			type: 'checkbox',
@@ -88,19 +89,19 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			default: false,
 			tooltip:
 				'If no data packet is received from a tracker within the timeout window, the validity variable will be cleared to an empty string.',
-			isVisible: (options) => options.advancedOptions === true,
+			isVisibleExpression: '$(options:advancedOptions)',
 		},
 		{
 			type: 'number',
 			id: 'trackerTimeout',
 			label: 'Tracker data timeout (ms)',
 			width: 6,
-			default: 10,
-			min: 1,
+			default: 500,
+			min: 20,
 			max: 60000,
 			tooltip:
 				"How long (in milliseconds) without a data packet before a tracker's validity variable is considered stale and cleared.",
-			isVisible: (options) => options.advancedOptions === true && options.useTrackerTimeout === true,
+			isVisibleExpression: '$(options:advancedOptions) && $(options:useTrackerTimeout)',
 		},
 		{
 			type: 'checkbox',
@@ -108,7 +109,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Only show specific Tracker IDs',
 			width: 4,
 			default: false,
-			isVisible: (options) => options.advancedOptions === true,
+			isVisibleExpression: '$(options:advancedOptions)',
 		},
 		{
 			type: 'static-text',
@@ -116,7 +117,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: '',
 			width: 6,
 			value: '',
-			isVisible: (options) => options.customTrackers === false,
+			isVisibleExpression: '!$(options:customTrackers)',
 		},
 		{
 			type: 'textinput',
@@ -126,7 +127,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			tooltip: `Show specific tracker or tracker range ("-1"=all trackers)(e.g. "0-5,34,100-130")`,
 			default: '0-100',
 			regex: '/^(([0-9]+(-[0-9]+){0,1}),{0,1}){1,}$/',
-			isVisible: (options) => options.customTrackers === true,
+			isVisibleExpression: '$(options:customTrackers)',
 		},
 		{
 			type: 'checkbox',
@@ -134,7 +135,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Only use specific features of Trackers',
 			width: 12,
 			default: false,
-			isVisible: (options) => options.advancedOptions === true,
+			isVisibleExpression: '$(options:advancedOptions)',
 		},
 
 		{
@@ -143,7 +144,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Position',
 			width: 3,
 			default: true,
-			isVisible: (options) => options.customFeatures === true,
+			isVisibleExpression: '$(options:customFeatures)',
 		},
 		{
 			type: 'checkbox',
@@ -151,7 +152,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Speed',
 			width: 3,
 			default: true,
-			isVisible: (options) => options.customFeatures === true,
+			isVisibleExpression: '$(options:customFeatures)',
 		},
 		{
 			type: 'checkbox',
@@ -159,7 +160,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Orientation',
 			width: 3,
 			default: true,
-			isVisible: (options) => options.customFeatures === true,
+			isVisibleExpression: '$(options:customFeatures)',
 		},
 
 		{
@@ -168,7 +169,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Acceleration',
 			width: 3,
 			default: true,
-			isVisible: (options) => options.customFeatures === true,
+			isVisibleExpression: '$(options:customFeatures)',
 		},
 		{
 			type: 'checkbox',
@@ -176,7 +177,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Targetposition',
 			width: 3,
 			default: true,
-			isVisible: (options) => options.customFeatures === true,
+			isVisibleExpression: '$(options:customFeatures)',
 		},
 		{
 			type: 'checkbox',
@@ -184,7 +185,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Timestamp',
 			width: 3,
 			default: true,
-			isVisible: (options) => options.customFeatures === true,
+			isVisibleExpression: '$(options:customFeatures)',
 		},
 		{
 			type: 'checkbox',
@@ -192,7 +193,7 @@ export function GetConfigFields(self: ModuleInstance): SomeCompanionConfigField[
 			label: 'Validity',
 			width: 3,
 			default: true,
-			isVisible: (options) => options.customFeatures === true,
+			isVisibleExpression: '$(options:customFeatures)',
 		},
 	]
 }
