@@ -64,7 +64,7 @@ With **Advanced Options** enabled, "Bind to specific IP" selects which network c
 #### Stale Tracker Data
 
 - **Clear Validity when tracker data is stale**: when enabled, `tracker_<id>_validity` becomes empty if no data has been received for that tracker within the timeout.
-- **Tracker data timeout (ms)**: how long to wait without data before a tracker is considered stale. Choose a value comfortably above your PSN source's packet interval (e.g. 100–500 ms for a 60 Hz source).
+- **Tracker data timeout (ms)**: how long to wait without data before a tracker is considered stale. Choose a value comfortably above your PSN source's packet interval (e.g. 100–500 ms for a 60 Hz source). Default: 500 ms, minimum: 20 ms.
 
 #### Example Usage
 
